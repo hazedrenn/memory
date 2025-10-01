@@ -1,13 +1,11 @@
 library ieee;
 use ieee.std_logic_1164.all;
-use ieee.math_real.log2;
-use ieee.math_real.ceil;
 use ieee.numeric_std.all;
 ------------------------------------------------------------------------
--- ENTITY: ram
+-- ENTITY: register_file
 --
 -- Description: This module allows for the creation, storage, and 
---              access of register-based memory a.k.a register file. 
+--              access of register-based memory a.k.a. register file. 
 --             
 --              generic: G_LENGTH sets length of register.
 --              generic: G_DEPTH sets depth of the register file.
@@ -18,14 +16,13 @@ use ieee.numeric_std.all;
 --                 memory.
 --              2) Set [enable] to enable access and storage of
 --                 memory.
---              3) Add data to memory by populating [data_in], setting
---                 [wr_enable], setting the [address], and pulsing a 
---                 [clock] cycle. 
---              4) Read from memory by setting the [address], clearing
---                 [wr_enable], and pulsing a [clock] cycle. The output 
---                 will come from [data_out].
+--              3) Add data to memory by populating [write_data], setting
+--                 [write_enable], setting the [write_address], and pulsing a 
+--                 [write_clock] cycle. 
+--              4) Read from memory by setting the [read_address], setting
+--                 [read_enable], and pulsing a [read_clock] cycle. The output 
+--                 will come from [read_data].
 --              
---             
 --              Here's a visual representation of a register file with
 --              G_DEPTH=3 and G_LENGTH=6 and a write of 001001 @ 
 --              address 4:
@@ -44,38 +41,47 @@ use ieee.numeric_std.all;
 --                          +-------------+
 --             
 ------------------------------------------------------------------------
-entity ram is
-  generic( 
-    G_LENGTH      : integer := 8;
-    G_DEPTH       : integer := 4);
-  port(
-    data_in       : in  std_logic_vector(G_LENGTH-1 downto 0);
-    clock         : in  std_logic;
-    wr_enable     : in  std_logic;                                 -- write on '1', read on '0' or other
-    enable        : in  std_logic;                                 -- enable memory access
-    address       : in  std_logic_vector(G_DEPTH-1 downto 0);
-    data_out      : out std_logic_vector(G_LENGTH-1 downto 0));
-end entity ram;
 
-architecture behavior of ram is 
+entity register_file is
+  generic( 
+    G_LENGTH      : natural := 8;
+    G_DEPTH       : natural := 4);
+  port(
+    reset         : in  std_logic;
+    enable        : in  std_logic;
+
+    -- Read Interface
+    read_clock    : in  std_logic;
+    read_data     : out std_logic_vector(G_LENGTH-1 downto 0);
+    read_address  : in  std_logic_vector(G_DEPTH-1 downto 0);
+    read_enable   : in  std_logic;
+    
+    -- Write Interface
+    write_clock   : in  std_logic;
+    write_data    : in  std_logic_vector(G_LENGTH-1 downto 0);
+    write_address : in  std_logic_vector(G_DEPTH-1 downto 0);
+    write_enable  : in  std_logic);
+end entity register_file;
+
+architecture behavior of register_file is
   subtype depth_range     is natural range 0          to     2**G_DEPTH-1;
   subtype length_range    is natural range G_LENGTH-1 downto 0;
   subtype t_register      is std_logic_vector(length_range);
   type    t_register_file is array (depth_range) of t_register;
-  signal  memory          : t_register_file;
+  signal  s_register_file : t_register_file;
 begin
   --------------------------
   -- PROCESS: write proc
   --
-  -- Writes [data_in] into memory @ [address].
+  -- Writes [write_data] into memory @ [write_address].
   --------------------------
-  write_proc: process(clock)
-    variable v_address : natural;
+  write_proc: process(write_clock)
+    variable v_write_address : natural;
   begin
-    if rising_edge(clock) then
-      if wr_enable and enable then
-        v_address := to_integer(unsigned(address));
-        memory(v_address) <= data_in;  
+    if rising_edge(write_clock) then
+      if write_enable and enable then
+        v_write_address := to_integer(unsigned(write_address));
+        s_register_file(v_write_address) <= write_data;  
       end if;
     end if;
   end process write_proc;
@@ -83,17 +89,16 @@ begin
   --------------------------
   -- PROCESS: read proc
   --
-  -- Reads [data_out] from memory @ [address].
+  -- Reads [read_data] from memory @ [read_address].
   --------------------------
-  read_proc: process(clock)
-    variable v_address : natural;
+  read_proc: process(read_clock)
+    variable v_read_address : natural;
   begin
-    if rising_edge(clock) then
-      if not wr_enable and enable then
-        v_address := to_integer(unsigned(address));
-        data_out <= memory(v_address);
+    if rising_edge(read_clock) then
+      if read_enable and enable then
+        v_read_address := to_integer(unsigned(read_address));
+        read_data <= s_register_file(v_read_address);
       end if;
     end if;
   end process read_proc;
-
 end architecture behavior;
