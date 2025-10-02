@@ -172,15 +172,17 @@ begin
     wait for PERIOD;
     s_reset <= '0';
     wait for PERIOD;
+    assert s_empty = '1' report "Not empty" severity FAILURE;
 
     -------------------------------------
     -- Read empty memory
     -------------------------------------
     print("Reading empty memory...");
     for i in 0 to 2**G_DEPTH-1 loop
-      v_data_in      := to_slv(0, s_data_in'length);
+      v_data_in := to_slv(0, s_data_in'length);
       read_from_memory;
       assert v_data_in = s_data_out report "Data mismatch" severity FAILURE;
+      assert s_empty = '1'          report "Not empty" severity FAILURE;
     end loop;
     print("");
 
@@ -189,9 +191,10 @@ begin
     -------------------------------------
     print("Writing to memory...");
     for i in 0 to 2**G_DEPTH-1 loop
-      v_data_in       := to_slv(i, s_data_in'length);
+      v_data_in := to_slv(i, s_data_in'length);
       write_to_memory(data_in => v_data_in);
     end loop;
+    assert s_full = '1' report "Not completely filled" severity FAILURE;
     print("");
 
     -------------------------------------
@@ -199,9 +202,10 @@ begin
     -------------------------------------
     print("Reading from memory...");
     for i in 0 to 2**G_DEPTH-1 loop
-      v_data_in      := to_slv(i, s_data_in'length);
+      v_data_in := to_slv(i, s_data_in'length);
       read_from_memory;
     end loop;
+    assert s_empty = '1' report "Not emptied" severity FAILURE;
     print("");
     
     -------------------------------------
