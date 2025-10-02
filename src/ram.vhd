@@ -3,6 +3,9 @@ use ieee.std_logic_1164.all;
 use ieee.math_real.log2;
 use ieee.math_real.ceil;
 use ieee.numeric_std.all;
+
+library work;
+use work.register_file_package.all;
 ------------------------------------------------------------------------
 -- ENTITY: ram
 --
@@ -49,6 +52,7 @@ entity ram is
     G_LENGTH      : integer := 8;
     G_DEPTH       : integer := 4);
   port(
+    reset         : in  std_logic;
     data_in       : in  std_logic_vector(G_LENGTH-1 downto 0);
     clock         : in  std_logic;
     wr_enable     : in  std_logic;                                 -- write on '1', read on '0' or other
@@ -58,42 +62,38 @@ entity ram is
 end entity ram;
 
 architecture behavior of ram is 
-  subtype depth_range     is natural range 0          to     2**G_DEPTH-1;
-  subtype length_range    is natural range G_LENGTH-1 downto 0;
-  subtype t_register      is std_logic_vector(length_range);
-  type    t_register_file is array (depth_range) of t_register;
-  signal  memory          : t_register_file;
-begin
-  --------------------------
-  -- PROCESS: write proc
-  --
-  -- Writes [data_in] into memory @ [address].
-  --------------------------
-  write_proc: process(clock)
-    variable v_address : natural;
-  begin
-    if rising_edge(clock) then
-      if wr_enable and enable then
-        v_address := to_integer(unsigned(address));
-        memory(v_address) <= data_in;  
-      end if;
-    end if;
-  end process write_proc;
+  -------------------------------------
+  -- COMPONENT: register_file
+  -------------------------------------
+  component register_file is
+    generic( 
+      G_LENGTH : natural := G_LENGTH;
+      G_DEPTH  : natural := G_DEPTH);
+    port(
+      reset    : in  std_logic;
+      enable   : in  std_logic;
+      read     : in  t_read_write_interface(address(G_DEPTH-1 downto 0));
+      write    : in  t_read_write_interface(address(G_DEPTH-1 downto 0));
+      data_in  : in  std_logic_vector(G_LENGTH-1 downto 0);
+      data_out : out std_logic_vector(G_LENGTH-1 downto 0));
+  end component register_file;
 
-  --------------------------
-  -- PROCESS: read proc
-  --
-  -- Reads [data_out] from memory @ [address].
-  --------------------------
-  read_proc: process(clock)
-    variable v_address : natural;
-  begin
-    if rising_edge(clock) then
-      if not wr_enable and enable then
-        v_address := to_integer(unsigned(address));
-        data_out <= memory(v_address);
-      end if;
-    end if;
-  end process read_proc;
+  signal s_read  : t_read_write_interface(address(G_DEPTH-1 downto 0));
+  signal s_write : t_read_write_interface(address(G_DEPTH-1 downto 0));
+begin
+
+  s_read  <= (clock, not wr_enable, address);
+  s_write <= (clock, wr_enable, address);
+
+  -------------------------------------
+  -- COMPONENT Instantiation: inst_register_file
+  -------------------------------------
+  inst_register_file : register_file port map(
+    reset    => reset   ,
+    enable   => enable  ,
+    read     => s_read  ,
+    write    => s_write ,
+    data_in  => data_in ,
+    data_out => data_out);
 
 end architecture behavior;

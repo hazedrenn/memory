@@ -11,9 +11,10 @@ package my_package is
     signal_e: std_logic;
   end record t_sample_record;
 
---  function to_hstr(
---    slv: in std_logic_vector)
---    return string;
+  function to_slv(
+    int: integer;
+    size: integer)
+    return std_logic_vector;
 
 end package my_package;
 
@@ -25,12 +26,11 @@ package body my_package is
     writeline(output, l);
   end procedure print;
 
---  function to_hstr(
---    slv: in std_logic_vector)
---    return string is
---    variable l: line;
---  begin
---    hwrite(l, slv);
---    return l.all;
---  end function to_hstr;
+  function to_slv(
+    int: integer;
+    size: integer)
+    return std_logic_vector is
+  begin
+    return std_logic_vector(to_unsigned(int, size));
+  end function to_slv;
 end package body my_package;

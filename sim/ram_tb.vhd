@@ -43,6 +43,7 @@ architecture behavior of ram_tb is
       G_LENGTH    : integer := G_LENGTH;
       G_DEPTH     : integer := G_DEPTH);
     port(
+      reset       : in  std_logic;
       data_in     : in  std_logic_vector(G_LENGTH-1 downto 0);
       clock       : in  std_logic;
       wr_enable   : in  std_logic; -- write on '1', read on '0'
@@ -59,6 +60,7 @@ architecture behavior of ram_tb is
   -------------------------------------
   -- SIGNALS
   -------------------------------------
+  signal s_reset      : std_logic;
   signal s_data_in    : std_logic_vector(G_LENGTH-1 downto 0);
   signal s_clock      : std_logic;
   signal s_wr_enable  : std_logic;
@@ -70,6 +72,7 @@ begin
   -- COMPONENT Instantiation: t_ram
   -------------------------------------
   t_ram : ram port map(
+    reset     => s_reset,
     data_in   => s_data_in,
     clock     => s_clock,
     wr_enable => s_wr_enable,
@@ -104,7 +107,7 @@ begin
       s_wr_enable <= '1';
       s_enable    <= '1';
       wait for PERIOD;
-      --print_result(s_data_in, s_wr_enable, s_address, s_data_out);
+      print_result(s_data_in, s_wr_enable, s_address, s_data_out);
     end procedure write_to_memory;
 
     -------------------------------------
@@ -118,7 +121,7 @@ begin
       s_wr_enable <= '0';
       s_enable    <= '1';
       wait for PERIOD;
-      --print_result(s_data_in, s_wr_enable, s_address, s_data_out);
+      print_result(s_data_in, s_wr_enable, s_address, s_data_out);
     end procedure read_from_memory;
 
     -------------------------------------
@@ -131,33 +134,54 @@ begin
     -------------------------------------
     -- BEGIN TESTING
     -------------------------------------
-    wait for PERIOD;
     print("*****************************************");
     print("** Testing ram...");
     print("*****************************************");
 
     -------------------------------------
+    -- Clear and reset memory
+    -------------------------------------
+    s_reset <= '0';
+    wait for PERIOD;
+    s_reset <= '1';
+    wait for PERIOD; 
+    s_reset <= '0';
+    wait for PERIOD;
+
+    -------------------------------------
+    -- Read empty memory
+    -------------------------------------
+    print("Reading from memory...");
+    for i in 0 to 2**G_DEPTH-1 loop
+      v_data_in := to_slv(0, s_data_in'length);
+      v_address := to_slv(i, s_address'length);
+      read_from_memory(address => v_address);
+      assert v_data_in = s_data_out report "Data mismatch" severity FAILURE;
+    end loop;
+    print("");
+
+    -------------------------------------
     -- Fill memory
     -------------------------------------
-    print("Writing to memory..."&lf);
+    print("Writing to memory...");
     for i in 0 to 2**G_DEPTH-1 loop
-      v_data_in := std_logic_vector(to_unsigned(i, s_data_in'length));
-      v_address := std_logic_vector(to_unsigned(i, s_address'length));
-
+      v_data_in := to_slv(i, s_data_in'length);
+      v_address := to_slv(i, s_address'length);
       write_to_memory(data_in => v_data_in, address => v_address);
     end loop;
+    print("");
 
     -------------------------------------
     -- Read memory
     -------------------------------------
-    print("Reading from memory..."&lf);
+    print("Reading from memory...");
     for i in 0 to 2**G_DEPTH-1 loop
-      v_data_in := std_logic_vector(to_unsigned(i, s_data_in'length));
-      v_address := std_logic_vector(to_unsigned(i, s_address'length));
-
+      v_data_in := to_slv(i, s_data_in'length);
+      v_address := to_slv(i, s_address'length);
       read_from_memory(address => v_address);
       assert v_data_in = s_data_out report "Data mismatch" severity FAILURE;
     end loop;
+    print("");
     
     print("*****************************************");
     print("** FINISHED ram test...");
